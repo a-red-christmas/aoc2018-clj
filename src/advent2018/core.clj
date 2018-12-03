@@ -2,6 +2,8 @@
 
 (defn reload  []  (use 'advent2018.data :reload)  (use 'advent2018.core :reload))
 
+(defn != [a b] (not (= a b)))
+
 (defmacro tryprob
   [num part]
   `(do
@@ -102,3 +104,37 @@
          eqchars (map = (first goodstrs) (second goodstrs))
          badcharloc (.indexOf eqchars false)]
      (rm-!= (first goodstrs) (second goodstrs)))))
+
+(defn p3-parse-line
+  [line]
+  (let [toks (clojure.string/split line #"\s+")
+        num (->> toks first rest (apply str) read-string)
+        [startx starty] (map read-string (-> toks (get 2) (clojure.string/split #"[,:]")))
+        [claimx claimy] (map read-string (-> toks (get 3) (clojure.string/split #"x")))]
+    (merge (zipmap
+             (for [x (map #(+ 1 startx %) (range claimx))
+                   y (map #(+ 1 starty %) (range claimy))]
+               (keyword (str x "|" y)))
+             (cycle [num]))
+           {num (* claimx claimy)})))
+
+(defn all-merges-contested
+  [a b]
+  :contested)
+
+(defn problem3_p1 [str-in]
+  (let [lines (clojure.string/split-lines str-in)
+        all-regions (map p3-parse-line lines)
+        merged-regions (reduce #(merge-with all-merges-contested %1 %2) all-regions)
+        contested-num (->> merged-regions vals (filter #(= % :contested)) count)]
+    contested-num))
+
+(defn problem3_p2 [str-in]
+  (let [lines (clojure.string/split-lines str-in)
+        all-regions (map p3-parse-line lines)
+        merged-regions (reduce #(merge-with all-merges-contested %1 %2) all-regions)
+        all-vals (-> merged-regions vals frequencies)
+        vals-which-are-keys (filter #(not (keyword? %)) (-> merged-regions keys))
+        got-correct-num (filter #(= (get merged-regions %)
+                                    (-> all-vals (get %))) vals-which-are-keys)]
+    got-correct-num))
