@@ -132,9 +132,103 @@
 (defn problem3_p2 [str-in]
   (let [lines (clojure.string/split-lines str-in)
         all-regions (map p3-parse-line lines)
-        merged-regions (reduce #(merge-with all-merges-contested %1 %2) all-regions)
+        merged-regions (apply merge-with all-merges-contested all-regions)
         all-vals (-> merged-regions vals frequencies)
         vals-which-are-keys (filter #(not (keyword? %)) (-> merged-regions keys))
         got-correct-num (filter #(= (get merged-regions %)
                                     (-> all-vals (get %))) vals-which-are-keys)]
     got-correct-num))
+
+(defn p4-parse-what [what]
+  (let [toks (rest (clojure.string/split what #"\s+"))]
+    (case (first toks)
+      "falls" :asleep
+      "wakes" :awake
+      "Guard" (-> toks second (subs 1) read-string)
+      :err)))
+
+(defn p4-parse-line [ctx line]
+  (let [[_ time what] (clojure.string/split line #"[\[\]]")
+        [date hourtime] (clojure.string/split time #"\s+")
+        minute (Integer/parseInt (second (clojure.string/split hourtime #"[:]")))
+        parsed-what (p4-parse-what what)]
+    (case parsed-what
+      :asleep (update-in ctx [:on-duty :status] conj {:time minute :wake? :asleep})
+      :awake (update-in ctx [:on-duty :status] conj {:time minute :wake? :awake})
+      (-> ctx
+          (update-in [:log (-> ctx :on-duty :id) :status] conj [(-> ctx :on-duty :clock-in) (-> ctx :on-duty :status)])
+          (assoc-in [:on-duty :id] parsed-what)
+          (assoc-in [:on-duty :status] [])
+          (assoc-in [:on-duty :clock-in] [date hourtime])))))
+
+(defn p4-get-one-watch [watch]
+  (loop [ctx {}
+         last-time 0
+         state :awake
+         curtimes watch]
+    (if (= 0 (count curtimes))
+      (merge ctx
+             (zipmap (range last-time 60) (cycle [(if (= state :awake) 0 1)])))
+      (let [curtime (first curtimes)
+            intVal (if (= state :awake) 0 1)
+            new-time (-> curtime :time)
+            new-state (-> curtime :wake?)
+            newctx (merge ctx
+                          (zipmap (range last-time new-time) (cycle [intVal])))]
+        (recur newctx new-time new-state (rest curtimes))))))
+
+(defn p4-to-60-minutes [guard-status]
+  (loop [ctx {:clock-in [] :watchlog {}}
+         logs guard-status]
+    (if (= 0 (count logs))
+      ctx
+      (let [msg (first logs)
+            in-time (first msg)
+            wakelog (sort-by :time (second msg))
+            new-watchlog (merge-with +
+                                     (-> ctx :watchlog)
+                                     (p4-get-one-watch wakelog))
+            new-clock-in (conj (-> ctx :clock-in) in-time)]
+        (recur {:clock-in new-clock-in :watchlog new-watchlog} (rest logs))))))
+
+(defn p4-get-total-minutes-sleeping [guard]
+  (reduce + (-> guard :watchlog vals)))
+
+(defn p4-get-minute-most-sleeping [guard]
+  (apply max-key #(val %) (->> guard :watchlog)))
+
+(defn p4-guard-summary [guardlogs]
+  (let [mins (p4-to-60-minutes (-> guardlogs second :status))
+        total-sleeping (p4-get-total-minutes-sleeping mins)
+        highest-sleeping (p4-get-minute-most-sleeping mins)]
+    {:guard (first guardlogs)
+     :total total-sleeping
+     :mins mins
+     :most highest-sleeping}))
+
+(defn p4-build-context [str-in]
+ (let [lines (sort (conj (clojure.string/split-lines str-in) "[2018-11-01 00:00] Guard #-5 begins shift"))]
+    (loop [ctx {:on-duty {:id :none}}
+           linesleft lines]
+      (if (= 0 (count linesleft))
+        ctx
+        (recur (p4-parse-line ctx (first linesleft)) (rest linesleft))))))
+
+(defn problem4_p1 [str-in]
+  (let [ctx (p4-build-context str-in)
+        ctxlog (dissoc (-> ctx :log) :none)
+        guardnums (map p4-guard-summary ctxlog)
+        winner (last (sort-by :total guardnums))
+        answer (* (:guard winner) (-> winner :most first))]
+    (prn (first guardnums))
+    answer))
+
+(defn problem4_p2 [str-in]
+  (let [ctx (p4-build-context str-in)
+        ctxlog (dissoc (-> ctx :log) :none)
+        guardnums (map p4-guard-summary ctxlog)
+        winner (last (sort-by #(-> % :most second) guardnums))
+        answer (* (:guard winner) (-> winner :most first))]
+    (prn (first guardnums))
+    (prn winner)
+    answer))
