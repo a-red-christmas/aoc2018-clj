@@ -232,3 +232,19 @@
     (prn (first guardnums))
     (prn winner)
     answer))
+
+(defn problem5_p1 [str-in]
+  (let [matchex #"(aA|Aa|bB|Bb|cC|Cc|dD|Dd|eE|Ee|fF|Ff|gG|Gg|hH|Hh|iI|Ii|jJ|Jj|kK|Kk|lL|Ll|mM|Mm|nN|Nn|oO|Oo|pP|Pp|qQ|Qq|rR|Rr|sS|Ss|tT|Tt|uU|Uu|vV|Vv|wW|Ww|xX|Xx|yY|Yy|zZ|Zz)"]
+    (loop [prevstr ""
+           prcme str-in]
+      (if (= (count prevstr) (count prcme))
+        (count prcme)
+        (recur prcme (clojure.string/replace prcme matchex ""))))))
+
+(defn problem5_p2 [str-in]
+  (loop [tryremove '(#"a|A" #"b|B" #"c|C" #"d|D" #"e|E" #"f|F" #"g|G" #"h|H" #"i|I" #"j|J" #"k|K" #"l|L" #"m|M" #"n|N" #"o|O" #"p|P" #"q|Q" #"r|R" #"s|S" #"t|T" #"u|U" #"v|V" #"w|W" #"x|X" #"y|Y" #"z|Z")
+         shortest-so-far (count str-in)]
+    (if (= 0 (count tryremove))
+      shortest-so-far
+      (let [next-best (problem5_p1 (-> str-in (clojure.string/replace (first tryremove) "")))]
+        (recur (rest tryremove) (min shortest-so-far next-best))))))
