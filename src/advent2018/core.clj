@@ -248,3 +248,60 @@
       shortest-so-far
       (let [next-best (problem5_p1 (-> str-in (clojure.string/replace (first tryremove) "")))]
         (recur (rest tryremove) (min shortest-so-far next-best))))))
+
+(defn p6-manh-dist [[x1 y1] [x2 y2]]
+  (+ (Math/abs (- x1 x2))
+     (Math/abs (- y1 y2))))
+
+(defn p6-which-closest [coord target]
+  (let [tmpmap (map
+                 (fn [a]
+                   {a
+                    (p6-manh-dist a target)}) coord)
+        winner (first (sort (group-by #(-> % vals first) tmpmap)))
+        loser? (< 1 (-> winner second count))
+        ]
+    (if loser?
+      nil
+      (-> winner second first first first))
+    ))
+
+(defn p6-sum-dists [coord target]
+  (let [adds (reduce + (map #(p6-manh-dist % target) coord)) ]
+    adds
+    ))
+
+(defn problem6_p1 [str-in]
+  (let [locs (for [line (clojure.string/split-lines str-in)]
+               (map read-string (clojure.string/split line #"[,\s]+")))
+        max-x (apply max (map first locs))
+        max-y (apply max (map second locs))
+        bad-points (concat
+                     (for [x (range (+ 1 1 max-x))] [x (+ 1 max-y)])
+                     (for [x (range (+ 1 1 max-x))] [x 0])
+                     (for [y (range (+ 1 1 max-y))] [0 y])
+                     (for [y (range (+ 1 1 max-y))] [(+ 1 max-x) y]))
+        all-points (zipmap (for [x (range (+ 1 1 max-x))
+                                 y (range (+ 1 1 max-y))]
+                             [x y])
+                           (cycle [nil]))
+        done-maps (map (fn [a] {(first a) (p6-which-closest locs (first a))}) all-points)
+        done-map (reduce merge done-maps)
+        infinite-closers (distinct (map #(get done-map %) bad-points))
+        all-closests (-> done-map vals frequencies)
+        valid-closests (reduce dissoc all-closests infinite-closers)
+        ]
+      (->> valid-closests vals (apply max))))
+
+(defn problem6_p2 [str-in]
+  (let [locs (for [line (clojure.string/split-lines str-in)]
+               (map read-string (clojure.string/split line #"[,\s]+")))
+        max-x (apply max (map first locs))
+        max-y (apply max (map second locs))
+        all-points (zipmap (for [x (range (+ 1 1 max-x))
+                                 y (range (+ 1 1 max-y))]
+                             [x y])
+                           (cycle [nil]))
+        done-maps (filter #(> 10000 %) (map #(p6-sum-dists locs (first %)) all-points))
+        ]
+      (count done-maps)))
