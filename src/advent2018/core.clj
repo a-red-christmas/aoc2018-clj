@@ -305,3 +305,78 @@
         done-maps (filter #(> 10000 %) (map #(p6-sum-dists locs (first %)) all-points))
         ]
       (count done-maps)))
+
+(defn linewise [str-in]
+  (clojure.string/split-lines str-in))
+
+(defn p7-get-node [line]
+  (let [[first second] (->
+                         line
+                         (clojure.string/split #" must be finished before step "))
+        newfirst (-> first (subs 5) keyword)
+        newsecond (-> second (subs 0 1) keyword)
+        ]
+    {:need newfirst :toget newsecond}))
+
+(defn p7-reduce-graph [sofar cur]
+  (assoc sofar
+         (:toget cur)
+         (into
+           (get sofar (:toget cur) #{})
+           [(:need cur)])))
+
+(defn problem7_p1 [str-in]
+  (let [lines (linewise str-in)
+        nodes (map p7-get-node lines)
+        all-keys (reduce #(into %1 [(:need %2) (:toget %2)]) #{} nodes)
+        usable-map (reduce p7-reduce-graph (zipmap (vec all-keys) (cycle [#{}])) nodes)
+        ]
+    (loop [rV '()
+           curmap usable-map]
+      (if (= 0 (count curmap))
+        (->> rV (map name) (apply str))
+        (let [togive (first
+                       (sort
+                         (map first
+                              (filter
+                                #(= 0 (count (-> % second)))
+                                curmap))))
+              newmap (apply merge (map (fn [a] {(-> a first) (disj (-> a second) togive)}) (dissoc curmap togive)))]
+          (recur (concat rV [togive]) newmap))))))
+
+(defn p7-remove-give [curmap togive]
+  (if togive
+    (apply merge (map (fn [a] {(-> a first) (disj (-> a second) togive)}) (dissoc curmap togive)))
+    curmap))
+
+(defn problem7_p2
+  ([str-in]
+   (problem7_p2 str-in 5 60))
+  ([str-in numworkers minduration]
+   (let [indexes [:A :B :C :D :E :F :G :H :I :J :K :L :M :N :O :P :Q :R :S :T :U :V :W :X :Y :Z] ; nil for + 1
+         lines (linewise str-in)
+         nodes (map p7-get-node lines)
+         all-keys (reduce #(into %1 [(:need %2) (:toget %2)]) #{} nodes)
+         usable-map (reduce p7-reduce-graph (zipmap (vec all-keys) (cycle [#{}])) nodes)
+         ]
+     (loop [rV '()
+            curmap usable-map
+            workers []
+            numticks 0]
+       (if (= 0 (count curmap) (count workers))
+         (dec numticks)
+         (let [
+               newworkers (map #(assoc % :dur (-> % :dur dec))
+                               (filter #(-> % :dur (!= 0)) workers))
+               viable-givers (sort (map first (filter #(= 0 (count (-> % second))) curmap)))
+               togive (take (- numworkers (count newworkers)) viable-givers)
+               nextworkers (reduce
+                             #(concat %1 [{:dur (+ minduration (.indexOf indexes %2)) :what %2}])
+                             newworkers
+                             togive)
+               newmap (reduce #(dissoc %1 %2) curmap togive)
+               ready (filter #(-> % :dur (= 0)) nextworkers)
+               newrV (concat rV (sort (map :what ready)))
+               newmap (reduce #(p7-remove-give %1 %2) newmap (map :what ready))
+               ]
+           (recur newrV newmap nextworkers (inc numticks))))))))
