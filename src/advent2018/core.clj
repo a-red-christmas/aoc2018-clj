@@ -471,14 +471,16 @@
 (defn p9-play [num-players last-val]
   (let [players (range num-players)]
     (loop [scores {}
-           players players
+           curplayer 0
            cur-val 0
            cur-coins (p9-ll)]
-      (let [next-players (take num-players (drop 1 (cycle players)))
+      (let [next-players (mod (inc curplayer) num-players)
             now-score (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val))
                         (-> cur-coins p9-ll-back-7 :cur (+ cur-val))
                         0)
-            new-scores (update scores (first players) #(if (nil? %1) %2 (+ %1 %2)) now-score)
+            new-scores (if (> now-score 0)
+                         (update scores (nth players curplayer) #(if (nil? %1) %2 (+ %1 %2)) now-score)
+                         scores)
             new-ray (if (> now-score 0)
                       (p9-back-and-drop cur-coins)
                       (p9-ll-insert-2-later cur-coins cur-val))
