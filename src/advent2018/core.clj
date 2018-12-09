@@ -220,7 +220,6 @@
         guardnums (map p4-guard-summary ctxlog)
         winner (last (sort-by :total guardnums))
         answer (* (:guard winner) (-> winner :most first))]
-    (prn (first guardnums))
     answer))
 
 (defn problem4_p2 [str-in]
@@ -229,8 +228,6 @@
         guardnums (map p4-guard-summary ctxlog)
         winner (last (sort-by #(-> % :most second) guardnums))
         answer (* (:guard winner) (-> winner :most first))]
-    (prn (first guardnums))
-    (prn winner)
     answer))
 
 (defn problem5_p1 [str-in]
@@ -353,7 +350,7 @@
   ([str-in]
    (problem7_p2 str-in 5 60))
   ([str-in numworkers minduration]
-   (let [indexes [:A :B :C :D :E :F :G :H :I :J :K :L :M :N :O :P :Q :R :S :T :U :V :W :X :Y :Z] ; nil for + 1
+   (let [indexes [:A :B :C :D :E :F :G :H :I :J :K :L :M :N :O :P :Q :R :S :T :U :V :W :X :Y :Z]
          lines (linewise str-in)
          nodes (map p7-get-node lines)
          all-keys (reduce #(into %1 [(:need %2) (:toget %2)]) #{} nodes)
@@ -380,3 +377,55 @@
                newmap (reduce #(p7-remove-give %1 %2) newmap (map :what ready))
                ]
            (recur newrV newmap nextworkers (inc numticks))))))))
+
+(defn p8-proc-ray
+  ([ray]
+   (->
+     (p8-proc-ray 1 (first ray) (second ray) (drop 2 ray))
+     :data))
+  ([myid num metadata rayleft]
+   (loop [id (inc myid)
+          still-children num
+          rV {:metadata [] :children {}}
+          total-consumed metadata
+          curray rayleft]
+     (if (= 0 still-children)
+       {:id id
+        :consumed total-consumed
+        :data (assoc rV :metadata (take metadata curray))}
+       (let [from-child (p8-proc-ray id (first curray) (second curray) (drop 2 curray))
+             newrV (assoc-in rV [:children id] (:data from-child))
+             newid (:id from-child)
+             sub-consumed (:consumed from-child)]
+         (recur newid
+                (dec still-children)
+                newrV
+                (+ sub-consumed 2 total-consumed)
+                (drop (+ 2 sub-consumed) curray)))))))
+
+(defn p8-sum-metadata [data-in]
+  (let [cursum (reduce + (:metadata data-in))]
+    (apply + cursum (for [[id data] (-> data-in :children)] (p8-sum-metadata data)))))
+
+(defn p8-node-val [data]
+  (let [kids (->> data :children vec sort (map second))
+        metadata (-> data :metadata)
+        all-vals (for [which metadata]
+                   (if (<= which (count kids))
+                     (p8-node-val (nth kids (dec which)))
+                     0))]
+    (if (= 0 (count kids))
+      (reduce + metadata)
+      (reduce + all-vals))))
+
+(defn problem8_p1 [str-in]
+  (let [ray (map read-string (clojure.string/split str-in #"\s+"))
+        data (p8-proc-ray ray)
+        metasum (p8-sum-metadata data)]
+    metasum))
+
+(defn problem8_p2 [str-in]
+  (let [ray (map read-string (clojure.string/split str-in #"\s+"))
+        data (p8-proc-ray ray)
+        metasum (p8-node-val data)]
+    metasum))
