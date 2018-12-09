@@ -429,3 +429,47 @@
         data (p8-proc-ray ray)
         metasum (p8-node-val data)]
     metasum))
+
+(defn p9-play [num-players last-val]
+  (let [players (range num-players)]
+    (loop [scores {}
+           players players
+           cur-val 0
+           cur-coins '()
+           cur-num 0]
+      (let [next-players (take (count players) (drop 1 (cycle players)))
+            num-coins cur-num
+            numtodrop (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val)) (- num-coins 7) 2)
+            ans-ray (lazy-seq (take num-coins (drop numtodrop (cycle cur-coins))))
+            new-point (first ans-ray)
+            new-back-ray (rest ans-ray)
+            now-score (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val))
+                        (+ cur-val new-point)
+                        0)
+            new-scores (update scores (first players) #(if (nil? %1) %2 (+ %1 %2)) now-score)
+            new-forward-ray (concat (list cur-val) ans-ray)
+            new-ray (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val)) new-back-ray new-forward-ray)
+            new-num (if (> now-score 0) cur-num (inc cur-num))
+            ]
+        (if (= 0 (mod cur-val 1000))
+          (prn (System/currentTimeMillis) cur-val))
+        (if (> cur-val last-val)
+          scores
+          (recur new-scores next-players (inc cur-val) new-ray new-num))))))
+
+(defn p9-score [scores]
+  (->> scores vals (apply max)))
+
+(defn problem9_p1 [str-in]
+  (let [input (clojure.string/split str-in #"\s+")
+        num-players (read-string (first input))
+        max-marble (read-string (nth input 6))
+        scores (p9-play num-players max-marble)]
+    (p9-score scores)))
+
+(defn problem9_p2 [str-in]
+  (let [input (clojure.string/split str-in #"\s+")
+        num-players (read-string (first input))
+        max-marble (* 100 (read-string (nth input 6)))
+        scores (p9-play num-players max-marble)]
+    (p9-score scores)))
