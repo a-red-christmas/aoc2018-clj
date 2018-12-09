@@ -436,15 +436,16 @@
 
 (defn p9-ll-insert-after-cur [ll num]
   (let [curitem (:cur ll)
-        next (if (nil? curitem) num (-> ll (get curitem) :next))
+        curitemmap (-> ll (get curitem))
+        next (if (nil? curitem) num (-> curitemmap :next))
         prev (if (nil? curitem) num curitem)
-        marble (p9-marble num next prev)
-        newcur {:cur num}
-        newmarble {num marble}
-        newprev (if (nil? curitem) {} {curitem (assoc (-> ll (get curitem)) :next num)})
-        tmpll (merge ll newprev)
-        newnext {next (assoc (-> tmpll (get next)) :prev num)}]
-    (merge ll newcur newprev newnext newmarble)))
+        newprev (if (nil? curitem) {} {curitem (assoc curitemmap :next num)})
+        tmpll (merge ll newprev)]
+    (assoc-in
+      (assoc-in
+        (assoc-in tmpll [next] (assoc (-> tmpll (get next)) :prev num))
+        [:cur] num)
+      [num] (p9-marble num next prev))))
 
 (defn p9-ll-insert-2-later [ll num]
   (let [tmpll (assoc ll :cur (-> ll (get (-> ll :cur)) :next))]
@@ -459,8 +460,9 @@
   (let [curmap (-> ll (get (-> ll :cur)))
         curprev (:prev curmap)
         curnext (:next curmap)
-        tmpll (assoc-in ll [curprev :next] curnext)
-        tmpll (assoc-in tmpll [curnext :prev] curprev)]
+        tmpll (assoc-in
+                (assoc-in ll [curprev :next] curnext)
+                [curnext :prev] curprev)]
     (assoc (dissoc tmpll (:num curmap)) :cur curnext)))
 
 (defn p9-back-and-drop [ll]
