@@ -430,32 +430,62 @@
         metasum (p8-node-val data)]
     metasum))
 
+(defn p9-marble [num next prev] {:num num :next next :prev prev})
+
+(defn p9-ll [] {:cur nil})
+
+(defn p9-ll-insert-after-cur [ll num]
+  (let [curitem (:cur ll)
+        next (if (nil? curitem) num (-> ll (get curitem) :next))
+        prev (if (nil? curitem) num curitem)
+        marble (p9-marble num next prev)
+        newcur {:cur num}
+        newmarble {num marble}
+        newprev (if (nil? curitem) {} {curitem (assoc (-> ll (get curitem)) :next num)})
+        tmpll (merge ll newprev)
+        newnext {next (assoc (-> tmpll (get next)) :prev num)}]
+    (merge ll newcur newprev newnext newmarble)))
+
+(defn p9-ll-insert-2-later [ll num]
+  (let [tmpll (assoc ll :cur (-> ll (get (-> ll :cur)) :next))]
+    (p9-ll-insert-after-cur tmpll num)))
+
+(defn p9-ll-back-7 [ll]
+  (let [back1 (fn [ll ignore]
+                (assoc ll :cur (-> ll (get (-> ll :cur)) :prev)))]
+    (reduce back1 ll (range 7))))
+
+(defn p9-drop-cur [ll]
+  (let [curmap (-> ll (get (-> ll :cur)))
+        curprev (:prev curmap)
+        curnext (:next curmap)
+        tmpll (assoc-in ll [curprev :next] curnext)
+        tmpll (assoc-in tmpll [curnext :prev] curprev)]
+    (assoc (dissoc tmpll (:num curmap)) :cur curnext)))
+
+(defn p9-back-and-drop [ll]
+  (-> ll
+      p9-ll-back-7
+      p9-drop-cur))
+
 (defn p9-play [num-players last-val]
   (let [players (range num-players)]
     (loop [scores {}
            players players
            cur-val 0
-           cur-coins '()
-           cur-num 0]
-      (let [next-players (take (count players) (drop 1 (cycle players)))
-            num-coins cur-num
-            numtodrop (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val)) (- num-coins 7) 2)
-            ans-ray (lazy-seq (take num-coins (drop numtodrop (cycle cur-coins))))
-            new-point (first ans-ray)
-            new-back-ray (rest ans-ray)
+           cur-coins (p9-ll)]
+      (let [next-players (take num-players (drop 1 (cycle players)))
             now-score (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val))
-                        (+ cur-val new-point)
+                        (-> cur-coins p9-ll-back-7 :cur (+ cur-val))
                         0)
             new-scores (update scores (first players) #(if (nil? %1) %2 (+ %1 %2)) now-score)
-            new-forward-ray (concat (list cur-val) ans-ray)
-            new-ray (if (and (= 0 (mod cur-val 23)) (!= 0 cur-val)) new-back-ray new-forward-ray)
-            new-num (if (> now-score 0) cur-num (inc cur-num))
+            new-ray (if (> now-score 0)
+                      (p9-back-and-drop cur-coins)
+                      (p9-ll-insert-2-later cur-coins cur-val))
             ]
-        (if (= 0 (mod cur-val 1000))
-          (prn (System/currentTimeMillis) cur-val))
         (if (> cur-val last-val)
           scores
-          (recur new-scores next-players (inc cur-val) new-ray new-num))))))
+          (recur new-scores next-players (inc cur-val) new-ray))))))
 
 (defn p9-score [scores]
   (->> scores vals (apply max)))
