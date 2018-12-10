@@ -1,5 +1,6 @@
 (ns advent2018.core
-  (:require [quil.core :as q]))
+  (:require [quil.core :as q]
+            [profile.core :as profile]))
 
 (defn reload  []  (use 'advent2018.data :reload)  (use 'advent2018.core :reload))
 
@@ -520,35 +521,30 @@
 
 (defn p10-tick [mapsin]
   (for [item mapsin]
-    (-> item
-        (update-in [:pos :x] + (-> item :vec :x))
-        (update-in [:pos :y] + (-> item :vec :y)))))
+    (assoc item :pos {:x (+ (-> item :vec :x) (-> item :pos :x))
+                      :y (+ (-> item :vec :y) (-> item :pos :y))})))
 
 (defn p10-width [mapsin & magic]
-  (loop [in (rest mapsin)
-         maxx (-> mapsin first :pos :x)
-         minx (-> mapsin first :pos :x)]
-    (if (= (count in) 0)
-      (if (> (count magic) 0)
-        {:max maxx :min minx}
-        (- maxx minx))
-      (recur (rest in) (max maxx (-> in first :pos :x)) (min minx (-> in first :pos :x))))))
+  (let [prompt {:max (-> mapsin first :pos :x) :min (-> mapsin first :pos :x)}
+        ans (reduce #(if 1 {:max (max (-> %2 :pos :x) (:max %1))
+                            :min (min (-> %2 :pos :x) (:min %1))}) prompt mapsin)]
+    (if (> (count magic) 0)
+      ans
+      (- (:max ans) (:min ans)))))
 
 (defn p10-height [mapsin & magic]
-  (loop [in (rest mapsin)
-         maxy (-> mapsin first :pos :y)
-         miny (-> mapsin first :pos :y)]
-    (if (= (count in) 0)
-      (if (> (count magic) 0)
-        {:max maxy :min miny}
-        (- maxy miny))
-      (recur (rest in) (max maxy (-> in first :pos :y)) (min miny (-> in first :pos :y))))))
+  (let [prompt {:max (-> mapsin first :pos :y) :min (-> mapsin first :pos :y)}
+        ans (reduce #(if 1 {:max (max (-> %2 :pos :y) (:max %1))
+                            :min (min (-> %2 :pos :y) (:min %1))}) prompt mapsin)]
+    (if (> (count magic) 0)
+      ans
+      (- (:max ans) (:min ans)))))
 
 (defn p10-find-height-minima [mapsin & magic]
   (loop [before mapsin
          after (p10-tick mapsin)
          beforeheight (p10-height mapsin)
-         afterheight (-> mapsin p10-tick p10-height)
+         afterheight (-> after p10-height)
          num-ticks 0]
     (if (< beforeheight afterheight)
       (if (> (count magic) 0)
