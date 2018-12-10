@@ -1,4 +1,5 @@
-(ns advent2018.core)
+(ns advent2018.core
+  (:require [quil.core :as q]))
 
 (defn reload  []  (use 'advent2018.data :reload)  (use 'advent2018.core :reload))
 
@@ -507,3 +508,66 @@
         max-marble (* 100 (read-string (nth input 6)))
         scores (p9-play num-players max-marble)]
     (p9-score scores)))
+
+(defn p10-line->map [line]
+  (let [[_ posxstr posystr _ vecxstr vecystr] (clojure.string/split line #"[<>\s,]+")]
+    {:pos {:x (read-string posxstr) :y (read-string posystr)}
+     :vec {:x (read-string vecxstr) :y (read-string vecystr)}}))
+
+(defn p10-input->maps [str-in]
+  (for [line (clojure.string/split-lines str-in)]
+    (p10-line->map line)))
+
+(defn p10-tick [mapsin]
+  (for [item mapsin]
+    (-> item
+        (update-in [:pos :x] + (-> item :vec :x))
+        (update-in [:pos :y] + (-> item :vec :y)))))
+
+(defn p10-width [mapsin & magic]
+  (loop [in (rest mapsin)
+         maxx (-> mapsin first :pos :x)
+         minx (-> mapsin first :pos :x)]
+    (if (= (count in) 0)
+      (if (> (count magic) 0)
+        {:max maxx :min minx}
+        (- maxx minx))
+      (recur (rest in) (max maxx (-> in first :pos :x)) (min minx (-> in first :pos :x))))))
+
+(defn p10-height [mapsin & magic]
+  (loop [in (rest mapsin)
+         maxy (-> mapsin first :pos :y)
+         miny (-> mapsin first :pos :y)]
+    (if (= (count in) 0)
+      (if (> (count magic) 0)
+        {:max maxy :min miny}
+        (- maxy miny))
+      (recur (rest in) (max maxy (-> in first :pos :y)) (min miny (-> in first :pos :y))))))
+
+(defn p10-find-height-minima [mapsin & magic]
+  (loop [before mapsin
+         after (p10-tick mapsin)
+         beforeheight (p10-height mapsin)
+         afterheight (-> mapsin p10-tick p10-height)
+         num-ticks 0]
+    (if (< beforeheight afterheight)
+      (if (> (count magic) 0)
+        num-ticks
+        before)
+      (let [newafter (p10-tick after)]
+        (recur after newafter afterheight (p10-height newafter) (inc num-ticks))))))
+
+(defn p10-draw [mapsin]
+  (fn []
+    (q/background 255)
+    (doseq [pos (map :pos mapsin)]
+      (q/point (:x pos) (:y pos)))))
+
+(defn problem10_p1 [str-in]
+  (let [input (-> str-in p10-input->maps p10-find-height-minima)
+        height (p10-height input :magic)]
+    (q/sketch :size [(* 2 (:max (p10-width input :magic))) (* 2 (:max height))] :draw (p10-draw input))))
+
+(defn problem10_p2 [str-in]
+  (let [input (-> str-in p10-input->maps (p10-find-height-minima :magic))]
+    input))
