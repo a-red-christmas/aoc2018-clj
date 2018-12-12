@@ -567,3 +567,63 @@
 (defn problem10_p2 [str-in]
   (let [input (-> str-in p10-input->maps (p10-find-height-minima :magic))]
     input))
+
+(defn p11-xy->power [x y snum]
+  (let [rack-id (+ 10 x)
+        power-level (* rack-id y)
+        plevel-with-snum (+ power-level snum)
+        plevel-times-rack (* plevel-with-snum rack-id)
+        hdigit (mod (/ (- plevel-times-rack (mod plevel-times-rack 100)) 100) 10)]
+    (- hdigit 5)))
+
+(defn p11-create-powers [snum]
+  (apply merge (for [x (range 1 301)
+               y (range 1 301)]
+           {(str x "," y) (p11-xy->power x y snum)})))
+
+(defn p11-possible-coords
+  ([]
+   (p11-possible-coords 3))
+  ([bysize]
+   (apply merge
+          (for [x (range 1 (- 301 bysize))
+                y (range 1 (- 301 bysize))]
+            {(str x "," y "," bysize)
+             (vec
+               (for [allx (map #(+ x %) (range bysize))
+                     ally (map #(+ y %) (range bysize))]
+                 (str allx "," ally)))}))))
+
+(defn p11-coords->power [coords powers]
+  (reduce #(+ %1 (get powers %2)) 0 coords))
+
+(defn p11-all-coords->power [coords powers]
+  (apply merge (map #(if 1 {(-> % first) (p11-coords->power (-> % second) powers)}) coords)))
+
+(defn p11-corner->power [x y bysize powers]
+  {(str x "," y "," bysize)
+   (apply +
+          (map #(get powers %)
+               (for [allx (map #(+ x %) (range bysize))
+                     ally (map #(+ y %) (range bysize))]
+                 (str allx "," ally))))})
+
+(defn problem11_p1 [str-in]
+  (let [snum (read-string str-in)
+        possible (p11-possible-coords)
+        powers (p11-create-powers snum)
+        combined (p11-all-coords->power possible powers)
+        maximum (apply max-key val combined)
+        ]
+    (clojure.string/join "," (drop-last 1 (clojure.string/split (key maximum) #"[,]")))))
+
+(defn problem11_p2 [str-in]
+  (let [snum (read-string str-in)
+        powers (p11-create-powers snum)]
+    (key (apply max-key val
+                (reduce merge
+                        (for [x (range 1 301)
+                              y (range 1 301)
+                              bysize (range 1 (+ 1 (min (- 301 x) (- 301 y))))]
+                          (let [pwr (p11-corner->power x y bysize powers)]
+                            pwr)))))))
